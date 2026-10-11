@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>autosave</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<script>
+// autosave.html — 自动玩的「改档桥」：只在页内自播（autoplay-self.js）跳转时被访问。
+// 做法与 work/max-save.js 一致：游戏页已卸载（不会边玩边写档）→ 改 localStorage → 跳回游戏页。
+// 每次跳转都写整份满档 + 当前关（与 CDP 版 applyMaxSave 口径一致）。
+(function () {
+  'use strict';
+  var KEY = 'ch_lmbwz_gameSave';
+  var RELIC_MAX = {"1001":30,"1002":30,"1003":30,"1004":30,"1005":30,"1006":30,"1007":30,"1008":30,"1009":20,"1010":20,"1011":20,"1012":20,"1013":20,"1014":20,"1015":10,"1016":10,"1017":20,"1018":5,"1019":5,"1020":5,"1021":10,"1023":10,"1024":30,"1025":30,"1026":30,"1027":20,"1028":20,"1029":20,"1030":10,"1031":10,"1032":10,"1033":10,"1034":10,"1035":5,"1036":5,"1037":5,"1038":5,"1039":5,"1040":5,"1041":5,"1042":5,"1043":5,"1044":5,"1045":5};
+  var j = null;
+  try { j = JSON.parse(sessionStorage.getItem('lm_auto_jump') || 'null'); } catch (e) {}
+  var out = { ok: false, why: 'no-jump' };
+  if (j && j.ch) {
+    try {
+      var sd = null;
+      try { sd = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+      if (!sd || !sd.customData || !sd.customData.UserData) {
+        out = { ok: false, why: 'save missing' };
+      } else {
+        var u = sd.customData.UserData;
+        u.level = 400;
+        u.baseLevel = 150;
+        u.gold = 1e18;
+        u.diamond = 1e9;
+        u.equipInfo = { '1': { id: 34, lv: 1 }, '2': { id: 35, lv: 1 }, '3': { id: 36, lv: 1 } };
+        u.curBuildInfo = u.curBuildInfo || {};
+        var ids = { '1': 3106, '2': 3206, '3': 3306, '4': 3406, '5': 3506, '6': 3606, '7': 3706, '8': 3806, '9': 3906 };
+        for (var t in ids) u.curBuildInfo[t] = { id: ids[t], level: 108 };
+        u.stageNumber = 1;
+        u.passChapter = j.ch - 1;
+        u.maxChapter = j.ch - 1;
+        u.curChapter = j.ch;
+        u.startGameRights = true;
+        var rd = sd.customData.RelicsData || (sd.customData.RelicsData = { lookAdNum: 0, relicsMap: {}, radomNum: 0, lookRelics: [] });
+        rd.relicsMap = rd.relicsMap || {};
+        for (var id in RELIC_MAX) {
+          var cur = rd.relicsMap[id] || {};
+          rd.relicsMap[id] = { id: Number(id), level: RELIC_MAX[id], curNum: cur.curNum || 0 };
+        }
+        localStorage.setItem(KEY, JSON.stringify(sd));
+        out = { ok: true, ch: j.ch, full: !!j.full };
+      }
+    } catch (e) { out = { ok: false, why: String(e) }; }
+  }
+  try { sessionStorage.setItem('lm_auto_jump_log', JSON.stringify(out)); } catch (e) {}
+  location.replace('index.html?auto=1&ms=' + Date.now());
+})();
+</script>
+</body>
+</html>
