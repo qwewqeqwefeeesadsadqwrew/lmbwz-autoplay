@@ -10,7 +10,7 @@
  */
 (function () {
   'use strict';
-  var CFG = {"user":"qwewqeqwefeeesadsadqwrew","cdn":"https://gcore.jsdelivr.net","refs":{"lmbwz-cdn-a":"30f58340965ed8e2016ff968b055ba41ca627dc6","lmbwz-cdn-b":"99cb222f4986fbf81b0e1fcc5210e4a3ee95735e","lmbwz-cdn-c":"c9fd0ffe0fce2ff2da053e70c55ad9e4d90d5068"},"map":{"Game":"lmbwz-cdn-a","res_RussianBlock":"lmbwz-cdn-a","res_json":"lmbwz-cdn-a","res_PeopleScareGhosts":"lmbwz-cdn-a","resources":"lmbwz-cdn-a","res_Report":"lmbwz-cdn-a","res_LuckyTD":"lmbwz-cdn-b","Res":"lmbwz-cdn-b","res_GuardingTheBridge":"lmbwz-cdn-b","res_PinballWar":"lmbwz-cdn-b","res_MinesweeperGame":"lmbwz-cdn-b","res_DestroyDevil":"lmbwz-cdn-b","res_HoldGround":"lmbwz-cdn-b","res_WaveZombies":"lmbwz-cdn-b","main":"lmbwz-cdn-b","res_Pvp":"lmbwz-cdn-b","res_TTSidebar":"lmbwz-cdn-b","res_public":"lmbwz-cdn-b","mini_LieFlat":"lmbwz-cdn-c","res_GoldMiner":"lmbwz-cdn-c","res_SmashTheJar":"lmbwz-cdn-c","res_MysteriousBag":"lmbwz-cdn-c","res_Loop":"lmbwz-cdn-c","res_DivideThree":"lmbwz-cdn-c","res_DragonGame":"lmbwz-cdn-c","res_EvilSpiritZuma":"lmbwz-cdn-c","res_ENightmare":"lmbwz-cdn-c","res_WaveZombies2":"lmbwz-cdn-c","res_ShootGame":"lmbwz-cdn-c","res_KnifeGame":"lmbwz-cdn-c","res_WZPublic":"lmbwz-cdn-c","res_SkinActivity51":"lmbwz-cdn-c","internal":"lmbwz-cdn-c","Load":"lmbwz-cdn-c"},"def":"lmbwz-cdn-c"};
+  var CFG = {"user":"qwewqeqwefeeesadsadqwrew","cdn":"https://gcore.jsdelivr.net","refs":{"lmbwz-cdn-a":"30f58340965ed8e2016ff968b055ba41ca627dc6","lmbwz-cdn-b":"99cb222f4986fbf81b0e1fcc5210e4a3ee95735e","lmbwz-cdn-c":"2bccaa51f46b783abd3cd08d1ba67c9d4700be51"},"map":{"Game":"lmbwz-cdn-a","res_RussianBlock":"lmbwz-cdn-a","res_json":"lmbwz-cdn-a","res_PeopleScareGhosts":"lmbwz-cdn-a","resources":"lmbwz-cdn-a","res_Report":"lmbwz-cdn-a","res_LuckyTD":"lmbwz-cdn-b","Res":"lmbwz-cdn-b","res_GuardingTheBridge":"lmbwz-cdn-b","res_PinballWar":"lmbwz-cdn-b","res_MinesweeperGame":"lmbwz-cdn-b","res_DestroyDevil":"lmbwz-cdn-b","res_HoldGround":"lmbwz-cdn-b","res_WaveZombies":"lmbwz-cdn-b","main":"lmbwz-cdn-b","res_Pvp":"lmbwz-cdn-b","res_TTSidebar":"lmbwz-cdn-b","res_public":"lmbwz-cdn-b","mini_LieFlat":"lmbwz-cdn-c","res_GoldMiner":"lmbwz-cdn-c","res_SmashTheJar":"lmbwz-cdn-c","res_MysteriousBag":"lmbwz-cdn-c","res_Loop":"lmbwz-cdn-c","res_DivideThree":"lmbwz-cdn-c","res_DragonGame":"lmbwz-cdn-c","res_EvilSpiritZuma":"lmbwz-cdn-c","res_ENightmare":"lmbwz-cdn-c","res_WaveZombies2":"lmbwz-cdn-c","res_ShootGame":"lmbwz-cdn-c","res_KnifeGame":"lmbwz-cdn-c","res_WZPublic":"lmbwz-cdn-c","res_SkinActivity51":"lmbwz-cdn-c","internal":"lmbwz-cdn-c","Load":"lmbwz-cdn-c"},"def":"lmbwz-cdn-c","files":{"cocos2d-js-min.0f56e.js":{"repo":"lmbwz-cdn-c","path":"engine/cocos2d-js-min.0f56e.js"}}};
   var qs = location.search;
   var simM = /[?&]cdnsim=([^&]+)/.exec(qs);
   var SIM = simM ? decodeURIComponent(simM[1]).replace(/\/+$/, '') : '';
@@ -27,12 +27,23 @@
   var ROOT = (SIM || CFG.cdn) + '/gh/' + CFG.user + '/';
   // 实测两种写法都会出现：`assets/Game/...`（普通 bundle）与 `/assets/internal/...`（内置 bundle，带前导斜杠）
   var RE = /^(?:\.{0,2}\/)*\/?assets\/([^/?#]+)([^?#]*)(\?[^#]*)?$/;
+  var RE_FILE = /^(?:\.{0,2}\/)*([^/?#]+)(\?[^#]*)?$/;   // 顶层文件（引擎 1.7MB 走 Pages 太慢）
+  var FILES = CFG.files || {};
   var ABS = /^[a-z][a-z0-9+.-]*:/i;
   function route(u) {
     if (typeof u !== 'string' || !u) return u;
     if (ABS.test(u)) return u;
     var m = RE.exec(u);
-    if (!m) return u;
+    if (!m) {
+      var fm = RE_FILE.exec(u);
+      if (!fm) return u;
+      var f = FILES[fm[1]];
+      if (!f) return u;
+      var fo = ROOT + f.repo + '@' + (CFG.refs[f.repo] || 'main') + '/' + f.path + (fm[2] || '');
+      info.hits++;
+      if (info.urls.length < 300) info.urls.push(u.slice(0, 90) + ' -> ' + fo.slice(-90));
+      return fo;
+    }
     var dir = m[1], rest = m[2] || '', q = m[3] || '';
     if (!rest) return u;
     var repo = CFG.map[dir] || CFG.def;
