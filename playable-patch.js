@@ -13,11 +13,18 @@
  *    playback it fires every few seconds and ruins the view. We make
  *    RoleBase.weaponColliderCheck a no-op so touching a drop does nothing at all
  *    (no popup, no PAUSE, no cooldown). Drops stay on the map; nothing else changes.
+ * 4) Mini-game collection unlock (manual mode only): every button in 小游戏合集
+ *    (MiniGamePopup) gates entry on `userData.passChapter >= data_para[xxxx].num`
+ *    (all configured as chapter 2). We wrap that controller's updateUnlock and
+ *    enter methods so the comparison sees 999999 only for the duration of the
+ *    call, then restore the real value. Save data, the config table and the
+ *    ?auto=1 autoplay path are untouched.
  *
  * URL switches:
  *   ?rights=0  disable the activation bypass
  *   ?gm=1      force GM mode (no ads / debug entries)
  *   ?weaponpopup=0  restore the melee-weapon pickup popup
+ *   ?unlock=0  disable the mini-game collection unlock
  */
 (function () {
   'use strict';
@@ -122,5 +129,67 @@
       }
       clearInterval(wpnTimer);
     }, 500);
+  }
+
+  // 4) unlock every mini-game in 小游戏合集 (manual mode only)
+  //    True lock site: <Xxx>BtnCtl.updateUnlock / onEnterMiniGame read
+  //    `userDataProxy.userData.passChapter` and compare it with a chapter number
+  //    from data_para. Force the value high only during those two calls, then put
+  //    it back. Nothing is written to localStorage and the config table is not
+  //    modified, so any fresh device gets the same result.
+  if (qs.get('unlock') !== '0' && qs.get('auto') !== '1') {
+    var MG_CTLS = [
+      'FankuaiBtnCtl', 'FanzhuanBtnCtl', 'MinerBtnCtl', 'LuckyTDBtnCtl',
+      'PinballWarBtnCtl', 'EnightmareBtnCtl', 'DiyushicaoBtnCtl', 'HoldGroundBtnCtl',
+      'BingFengSanLuBtnCtl', 'ZuMaBtnCtl ', 'ShootBtnCtl', 'PSGBtnCtl',
+      'SmashTheJarBtnCtl', 'DragonBtnCtl', 'BagBtnCtl'
+    ];
+    var mgDone = {};
+    var mgTries = 0;
+    var mgTimer = setInterval(function () {
+      mgTries++;
+      if (mgTries > 900) { clearInterval(mgTimer); return; } // ~6 min, then give up
+      if (typeof window.__require !== 'function') return;
+      var ud = null;
+      try {
+        var um = window.__require('UserDataProxy');
+        ud = um && um.userDataProxy && um.userDataProxy.userData;
+      } catch (e) { ud = null; }
+      if (!ud) return;
+      var allDone = true;
+      for (var i = 0; i < MG_CTLS.length; i++) {
+        var name = MG_CTLS[i];
+        if (mgDone[name]) continue;
+        var cls = null;
+        try {
+          var mod = window.__require(name);
+          cls = mod && (mod.default || mod);
+        } catch (e) { cls = null; }
+        if (!cls || !cls.prototype) { allDone = false; continue; }
+        (function (proto) {
+          ['updateUnlock', 'onEnterMiniGame', 'onEnterMini1Game'].forEach(function (method) {
+            var orig = proto[method];
+            if (typeof orig !== 'function' || orig.__mgUnlock) return;
+            var wrapped = function () {
+              var d = null;
+              try {
+                var pm = window.__require('UserDataProxy');
+                d = pm && pm.userDataProxy && pm.userDataProxy.userData;
+              } catch (e) { d = null; }
+              if (!d || typeof d.passChapter !== 'number') return orig.apply(this, arguments);
+              var real = d.passChapter;
+              d.passChapter = 999999;
+              try { return orig.apply(this, arguments); }
+              finally { d.passChapter = real; }
+            };
+            wrapped.__mgUnlock = true;
+            proto[method] = wrapped;
+          });
+        })(cls.prototype);
+        mgDone[name] = true;
+        try { console.log('[playable-patch] mini-game unlocked: ' + name); } catch (e) {}
+      }
+      if (allDone) clearInterval(mgTimer);
+    }, 400);
   }
 })();
