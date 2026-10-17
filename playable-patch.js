@@ -191,5 +191,20 @@
       }
       if (allDone) clearInterval(mgTimer);
     }, 400);
+
+    // 4b) the panel's cell list itself is filtered by DataManager.miniGames
+    //     (fresh save only lists the ungated ones). Keep the full list pinned.
+    var listTimer = setInterval(function () {
+      try {
+        var dmMod = window.__require('DataManager');
+        var dm = dmMod && dmMod.DataManager && dmMod.DataManager.instance;
+        if (!dm) return;
+        if (!Array.isArray(dm.miniGames) || dm.miniGames.length < 31) {
+          var all = [];
+          for (var k = 0; k <= 30; k++) all.push(k);
+          dm.miniGames = all;
+        }
+      } catch (e) {}
+    }, 400);
   }
 })();
